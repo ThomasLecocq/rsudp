@@ -194,6 +194,8 @@ def run(settings, debug):
 		kiosk = settings['plot']['kiosk']
 		screencap = settings['plot']['eq_screenshots']
 		alert = settings['alert']['enabled']
+		fmin = settings['plot']['fmin']
+		fmax = settings['plot']['fmax']
 		if settings['plot']['deconvolve']:
 			if settings['plot']['units'].upper() in rs.UNITS:
 				deconv = settings['plot']['units'].upper()
@@ -204,7 +206,7 @@ def run(settings, debug):
 		pq = mk_q()
 		PLOTTER = Plot(cha=cha, seconds=sec, spectrogram=spec,
 						fullscreen=full, kiosk=kiosk, deconv=deconv, q=pq,
-						screencap=screencap, alert=alert, testing=TESTING)
+						screencap=screencap, alert=alert, testing=TESTING, fmin=fmin, fmax=fmax)
 		# no mk_p() here because the plotter must be controlled by the main thread (this one)
 
 	if settings['forward']['enabled']:

@@ -505,6 +505,8 @@ def get_inventory(sender='get_inventory'):
 	'''
 	global inv, stn, region
 	sender = 'get_inventory'
+	home_path = os.path.expanduser("~")
+	inv_path = os.path.join(home_path, ".config", "rsudp", "%s_%s.xml"%(net, stn))
 	if 'Z0000' in stn:
 		printW('No station name given, continuing without inventory.',
 				sender)
@@ -513,9 +515,10 @@ def get_inventory(sender='get_inventory'):
 		try:
 			printM('Fetching inventory for station %s.%s from Raspberry Shake FDSN.'
 					% (net, stn), sender)
-			url = 'https://fdsnws.raspberryshakedata.com/fdsnws/station/1/query?network=%s&station=%s&level=resp&nodata=404&format=xml' % (
+			url = 'https://data.raspberryshake.org/fdsnws/station/1/query?network=%s&station=%s&level=resp&nodata=404&format=xml' % (
 				   net, stn)#, str(UTCDateTime.now()-timedelta(seconds=14400)))
 			inv = read_inventory(url)
+			inv.write(inv_path, format="STATIONXML")
 			region = FlinnEngdahl().get_region(inv[0][-1].longitude, inv[0][-1].latitude)
 			printM('Inventory fetch successful. Station region is %s' % (region), sender)
 		except (IndexError, HTTPError):
@@ -523,8 +526,13 @@ def get_inventory(sender='get_inventory'):
 			printW('Deconvolution will only be available if data forwarding is on.', sender, spaces=True)
 			printW('Access the config page of the web front end for details.', sender, spaces=True)
 			printW('More info at https://manual.raspberryshake.org/quickstart.html', sender, spaces=True)
-			inv = False
-			region = False
+			try:
+				inv = read_inventory(inv_path)
+				region = FlinnEngdahl().get_region(inv[0][-1].longitude, inv[0][-1].latitude)
+				printM('Inventory fetch successful. Station region is %s' % (region), sender)
+			except:
+				inv=False
+				region = False
 		except Exception as e:
 			printE('Inventory fetch failed!', sender)
 			printE('Error detail: %s' % e, sender, spaces=True)

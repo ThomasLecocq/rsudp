@@ -50,6 +50,32 @@ except Exception as e:
 ICON = 'icon.ico'
 ICON2 = 'icon.png'
 
+
+import numpy as np
+
+def get_ML_from_disp(disp):
+	"""
+	disp: displacement's PTP
+	"""
+	## Compute ML from velocity data using numpy only
+
+	## Distance between jumping people and seismometer in km
+	R = 0.1
+
+	## Pre-calculate log_a0 for ML scale
+	a = 0.01692156
+	gamma = 0.0026
+	log_a0 = np.log10(a) - (5./6) * np.log10(R) - gamma * R * np.log10(np.e)
+
+	## Convert to micrometer
+	Amax = disp/2. * 1E+6
+
+	## Calculate ML
+	## Test: Amax=2.42 at R=10 km should correspond to ML=3.0
+	ML = np.log10(Amax) - log_a0
+
+	return ML
+
 class Plot:
 	'''
 	.. role:: json(code)
@@ -111,7 +137,8 @@ class Plot:
 				 seconds=30, spectrogram=True,
 				 fullscreen=False, kiosk=False,
 				 deconv=False, screencap=False,
-				 alert=True, testing=False):
+				 alert=True, testing=False,
+				 fmin=0.1, fmax=50.0):
 		"""
 		Initialize the plot process.
 
@@ -122,6 +149,9 @@ class Plot:
 		self.testing = testing
 		self.alarm = False			# don't touch this
 		self.alarm_reset = False	# don't touch this
+
+		self.fmin = fmin
+		self.fmax = fmax
 
 		if MPL == False:
 			sys.stdout.flush()
@@ -152,7 +182,7 @@ class Plot:
 		self.fullscreen = fullscreen
 		self.kiosk = kiosk
 		self.num_chans = len(self.chans)
-		self.delay = rs.tr if (self.spectrogram) else 1
+		self.delay = rs.tr if (self.spectrogram) else 0.25
 		self.delay = 0.5 if (self.chans == ['SHZ']) else self.delay
 
 		self.screencap = screencap
@@ -160,7 +190,7 @@ class Plot:
 		self.save_pct = 0.7
 		self.save = []
 		self.events = 0
-		self.event_text = ' - detected events: 0' if alert else ''
+		self.event_text = ' - detected events: 0' if alert else 'at Pukkelpop 2024'
 		self.last_event = []
 		self.last_event_str = False
 		# plot stuff
@@ -327,11 +357,11 @@ class Plot:
 		self.fig.canvas.mpl_connect('close_event', self.handle_close)
 		self.fig.canvas.mpl_connect('resize_event', self.handle_resize)
 		
-		if QT:
-			self.fig.canvas.window().statusBar().setVisible(False) # remove bottom bar
+		# if QT:
+		# 	self.fig.canvas.window().statusBar().setVisible(False) # remove bottom bar
 		self.fig.canvas.manager.set_window_title('%s.%s - Raspberry Shake Monitor' % (self.net, self.stn))
 		self.fig.patch.set_facecolor(self.bgcolor)	# background color
-		self.fig.suptitle('%s.%s live output%s'	# title
+		self.fig.suptitle('%s.%s live %s'	# title
 						  % (self.net, self.stn, self.event_text),
 						  fontsize=14, color=self.fgcolor,x=0.52)
 		self.ax, self.lines = [], []				# list for subplot axes and lines artists
@@ -413,7 +443,7 @@ class Plot:
 							  )-np.timedelta64(self.seconds, 's')	# numpy time
 		end = np.datetime64(self.stream[0].stats.endtime)	# numpy time
 
-		im = mpimg.imread(pr.resource_filename('rsudp', os.path.join('img', 'version1-01-small.png')))
+		im = mpimg.imread(pr.resource_filename('rsudp', os.path.join('img', 'roblogo2.png')))
 		self.imax = self.fig.add_axes([0.015, 0.944, 0.2, 0.056], anchor='NW') # [left, bottom, right, top]
 		self.imax.imshow(im, aspect='equal', interpolation='sinc')
 		self.imax.axis('off')
@@ -426,6 +456,7 @@ class Plot:
 			r = np.arange(start, end, np.timedelta64(int(1000/self.sps), 'ms'))[-len(
 						  self.stream[i].data[int(-self.sps*(self.seconds-(comp/2))):-int(self.sps*(comp/2))]):]
 			mean = int(round(np.mean(self.stream[i].data)))
+
 			# add artist to lines list
 			self.lines.append(self.ax[i*self.mult].plot(r,
 							  np.nan*(np.zeros(len(r))),
@@ -534,6 +565,11 @@ class Plot:
 					self.stream[i].data[int(-self.sps*(self.seconds-(comp/2))):-int(self.sps*(comp/2))]):]
 		self.lines[i].set_ydata(self.stream[i].data[int(-self.sps*(self.seconds-(comp/2))):-int(self.sps*(comp/2))]-mean)
 		self.lines[i].set_xdata(r)	# (1/self.per_lap)/2
+
+		tmp = self.stream[i].data[int(-self.sps*(self.seconds-(comp/2))):-int(self.sps*(comp/2))]
+		ML = get_ML_from_disp(tmp.ptp())
+		self.lines[i].set_label(self.stream[i].stats.channel + " - $M_L= %.2f$" % ML)
+		self.ax[i * self.mult].legend(loc='upper left')  # legend and location
 		self.ax[i*self.mult].set_xlim(left=start.astype(datetime)+timedelta(seconds=comp*1.5),
 										right=end.astype(datetime))
 		self.ax[i*self.mult].set_ylim(bottom=np.min(self.stream[i].data-mean)
@@ -569,6 +605,7 @@ class Plot:
 		self.ax[i*self.mult+1].tick_params(axis='x', which='both',
 				bottom=False, top=False, labelbottom=False)
 		self.ax[i*self.mult+1].set_ylabel('Frequency (Hz)', color=self.fgcolor)
+		self.ax[i * self.mult + 1].set_ylim(self.fmin, self.fmax)
 		self.ax[i*self.mult+1].set_xlabel('Time (UTC)', color=self.fgcolor)
 
 
@@ -584,7 +621,14 @@ class Plot:
 							  )-np.timedelta64(self.seconds, 's')	# numpy time
 		end = np.datetime64(self.stream[0].stats.endtime)	# numpy time
 		self.raw = self.raw.slice(starttime=obstart)	# slice the stream to the specified length (seconds variable)
+		# self.stream.integrate()
+		# self.stream.select(channel="ENZ").integrate()
+		# print(self.stream)
+		# for tr in self.stream:
+		# 	print(tr.id, tr.data.ptp())
 		self.stream = self.stream.slice(starttime=obstart)	# slice the stream to the specified length (seconds variable)
+
+		self.stream.filter("bandpass", freqmin=self.fmin, freqmax=self.fmax, corners=4)
 		i = 0
 		for i in range(self.num_chans):	# for each channel, update the plots
 			mean = int(round(np.mean(self.stream[i].data)))

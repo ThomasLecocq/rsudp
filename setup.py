@@ -18,7 +18,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     include_package_data=True,
     install_requires=['obspy',
-                      'numpy>=2.0.0,<3',
+                      'numpy',
                       'matplotlib>3.2,<4',
                       'pydub',
                       'twython',

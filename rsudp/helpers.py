@@ -46,7 +46,9 @@ def default_settings(output_dir='%s/rsudp' % os.path.expanduser('~').replace('\\
     "eq_screenshots": false,
     "channels": ["all"],
     "deconvolve": true,
-    "units": "CHAN"},
+    "units": "CHAN",
+    "fmin": 0.1,
+    "fmax": 50.0},
 "forward": {
     "enabled": false,
     "address": ["192.168.1.254"],
