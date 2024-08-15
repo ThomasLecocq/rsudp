@@ -50,7 +50,7 @@ if defined conda_dir (
 call bin\win-conda.bat activate %conda_dir% conda
 
 :: Add conda forge channel. It will ignore if already added.
-call %conda% config --append channels conda-forge
+@REM call %conda% config --append channels conda-forge
 
 :: (Re)install rsudp environment.
 if exist %conda_dir%\envs\rsudp (
@@ -60,11 +60,11 @@ if exist %conda_dir%\envs\rsudp (
     echo Removing old environment...
 	rd /s/q "%conda_dir%\envs\rsudp"
 	echo Reinstalling rsudp conda environment...
-	call %conda% create -n rsudp python=3 numpy=2.0.1 future scipy lxml sqlalchemy obspy -y
+	call %conda% create -n rsudp python=3.12 numpy future scipy lxml sqlalchemy obspy -y
   )
 ) else (
   echo Creating and installing rsudp conda environment...
-  call %conda% create -n rsudp python=3 numpy=2.0.1 future scipy lxml sqlalchemy obspy -y
+  call %conda% create -n rsudp python=3.12 numpy future scipy lxml sqlalchemy obspy -y
 )
 
 if not exist %conda_dir%\envs\rsudp (

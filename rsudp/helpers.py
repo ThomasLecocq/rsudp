@@ -48,7 +48,9 @@ def default_settings(output_dir='%s/rsudp' % os.path.expanduser('~').replace('\\
     "deconvolve": true,
     "units": "CHAN",
     "fmin": 0.1,
-    "fmax": 50.0},
+    "fmax": 50.0,
+    "seconds_per_ML": 10,
+    "ML_distance_km": 0.1},
 "forward": {
     "enabled": false,
     "address": ["192.168.1.254"],

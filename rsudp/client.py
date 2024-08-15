@@ -196,6 +196,8 @@ def run(settings, debug):
 		alert = settings['alert']['enabled']
 		fmin = settings['plot']['fmin']
 		fmax = settings['plot']['fmax']
+		seconds_per_ML = int(settings['plot']['seconds_per_ML'])
+		ML_distance_km = settings['plot']['ML_distance_km']
 		if settings['plot']['deconvolve']:
 			if settings['plot']['units'].upper() in rs.UNITS:
 				deconv = settings['plot']['units'].upper()
@@ -206,7 +208,9 @@ def run(settings, debug):
 		pq = mk_q()
 		PLOTTER = Plot(cha=cha, seconds=sec, spectrogram=spec,
 						fullscreen=full, kiosk=kiosk, deconv=deconv, q=pq,
-						screencap=screencap, alert=alert, testing=TESTING, fmin=fmin, fmax=fmax)
+						screencap=screencap, alert=alert, testing=TESTING,
+					   fmin=fmin, fmax=fmax, seconds_per_ML=seconds_per_ML,
+					   ML_distance_km=ML_distance_km)
 		# no mk_p() here because the plotter must be controlled by the main thread (this one)
 
 	if settings['forward']['enabled']:

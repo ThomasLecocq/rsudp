@@ -4,6 +4,9 @@ import time
 import math
 import numpy as np
 from datetime import datetime, timedelta
+
+from obspy import UTCDateTime
+
 import rsudp.raspberryshake as rs
 from rsudp import printM, printW, printE, get_scap_dir, helpers
 from rsudp.test import TEST
@@ -53,14 +56,14 @@ ICON2 = 'icon.png'
 
 import numpy as np
 
-def get_ML_from_disp(disp):
+def get_ML_from_disp(disp, distance):
 	"""
 	disp: displacement's PTP
 	"""
-	## Compute ML from velocity data using numpy only
+	## Compute ML from displacement data using numpy only
 
 	## Distance between jumping people and seismometer in km
-	R = 0.1
+	R = distance
 
 	## Pre-calculate log_a0 for ML scale
 	a = 0.01692156
@@ -138,7 +141,9 @@ class Plot:
 				 fullscreen=False, kiosk=False,
 				 deconv=False, screencap=False,
 				 alert=True, testing=False,
-				 fmin=0.1, fmax=50.0):
+				 fmin=0.1, fmax=50.0,
+				 seconds_per_ML=10.0,
+				 ML_distance_km=0.1):
 		"""
 		Initialize the plot process.
 
@@ -152,6 +157,8 @@ class Plot:
 
 		self.fmin = fmin
 		self.fmax = fmax
+		self.seconds_per_ML = seconds_per_ML
+		self.ML_distance_km = ML_distance_km
 
 		if MPL == False:
 			sys.stdout.flush()
@@ -566,9 +573,29 @@ class Plot:
 		self.lines[i].set_ydata(self.stream[i].data[int(-self.sps*(self.seconds-(comp/2))):-int(self.sps*(comp/2))]-mean)
 		self.lines[i].set_xdata(r)	# (1/self.per_lap)/2
 
-		tmp = self.stream[i].data[int(-self.sps*(self.seconds-(comp/2))):-int(self.sps*(comp/2))]
-		ML = get_ML_from_disp(tmp.ptp())
-		self.lines[i].set_label(self.stream[i].stats.channel + " - $M_L= %.2f$" % ML)
+		def list_annotations(ax):
+			return [child for child in ax.get_children() if isinstance(child, plt.Annotation)]
+
+		for ann in list_annotations(self.ax[i * self.mult]):
+			ann.remove()
+
+		imin = int(-self.sps * (self.seconds - (comp / 2)))
+		MLMax = -1
+		for second in range(self.seconds, 0, -self.seconds_per_ML):
+			imin = int(-self.sps * (second - (comp / 2)))
+			imax = int(-self.sps * (second -self.seconds_per_ML - (comp / 2)))
+			tmp = self.stream[i].data[imin:imax]
+			if not len(tmp):
+				continue
+			ML = get_ML_from_disp(tmp.ptp(), self.ML_distance_km)
+			if ML>MLMax:
+				MLMax=ML
+			self.ax[i * self.mult].annotate("$M_L= %.2f$" % ML,((end-np.timedelta64(int(second-self.seconds_per_ML/2), 's')).astype(datetime),0),color="white")
+
+		tmp = self.stream[i].data[imin:-1]
+		ML = get_ML_from_disp(tmp.ptp(), self.ML_distance_km)
+		self.lines[i].set_label(self.stream[i].stats.channel + " - Last: $M_L= %.2f$ - Max: $M_L= %.2f$" % (ML, MLMax))
+
 		self.ax[i * self.mult].legend(loc='upper left')  # legend and location
 		self.ax[i*self.mult].set_xlim(left=start.astype(datetime)+timedelta(seconds=comp*1.5),
 										right=end.astype(datetime))
