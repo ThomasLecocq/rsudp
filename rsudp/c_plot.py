@@ -59,6 +59,7 @@ import numpy as np
 def get_ML_from_disp(disp, distance):
 	"""
 	disp: displacement's PTP
+	distance: distance in km
 	"""
 	## Compute ML from displacement data using numpy only
 
@@ -375,10 +376,10 @@ class Plot:
 		self.mult = 1					# spectrogram selection multiplier
 		if self.spectrogram:
 			self.mult = 2				# 2 if user wants a spectrogram else 1
-			if self.seconds > 60:
-				self.per_lap = 0.9		# if axis is long, spectrogram overlap can be shorter
+			if self.seconds > 180:
+				self.per_lap = 0.90		# if axis is long, spectrogram overlap can be shorter
 			else:
-				self.per_lap = 0.975	# if axis is short, increase resolution
+				self.per_lap = 0.99	# if axis is short, increase resolution
 			# set spectrogram parameters
 			self.nfft1 = self._nearest_pow_2(self.sps)
 			self.nlap1 = self.nfft1 * self.per_lap
@@ -581,7 +582,7 @@ class Plot:
 
 		imin = int(-self.sps * (self.seconds - (comp / 2)))
 		MLMax = -1
-		for second in range(self.seconds, 0, -self.seconds_per_ML):
+		for second in range(self.seconds, 0, int(-self.seconds_per_ML)):
 			imin = int(-self.sps * (second - (comp / 2)))
 			imax = int(-self.sps * (second -self.seconds_per_ML - (comp / 2)))
 			tmp = self.stream[i].data[imin:imax]
@@ -617,8 +618,9 @@ class Plot:
 		if len(self.stream[i].data) < self.nfft1:	# when the number of data points is low, we just need to kind of fake it for a few fractions of a second
 			self.nfft1 = 8
 			self.nlap1 = 6
+
 		sg = self.ax[i*self.mult+1].specgram(self.stream[i].data - mean,
-                    NFFT=int(self.nfft1), pad_to=int(self.nfft1*4), # previously self.sps*4),
+                    NFFT=int(self.nfft1), pad_to=int(self.nfft1*2), # previously self.sps*4),
 					Fs=self.sps, noverlap=int(self.nlap1))[0]	# meat & potatoes
 		self.ax[i*self.mult+1].clear()	# incredibly important, otherwise continues to draw over old images (gets exponentially slower)
 		# cloogy way to shift the spectrogram to line up with the seismogram
